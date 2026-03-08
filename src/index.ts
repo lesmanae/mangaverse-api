@@ -346,3 +346,4 @@ app.get('/ui', swaggerUI({ url: '/doc' }))
 
 // Export murni Hono App untuk Cloudflare Workers
 export default app
+// Bismillah deploy jalan
