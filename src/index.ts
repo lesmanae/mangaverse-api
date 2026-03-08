@@ -1,8 +1,14 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import { swaggerUI } from '@hono/swagger-ui'
 import * as cheerio from 'cheerio'
+import { cors } from 'hono/cors'
 
 const app = new OpenAPIHono()
+
+// ==========================================
+// 0. IZIN CORS (Biar web lu bisa narik data)
+// ==========================================
+app.use('/api/*', cors())
 
 app.get('/', (c) => c.text('Mangaverse API is Running di Cloudflare Workers! Cek /ui untuk Dokumentasi.'))
 
@@ -346,4 +352,3 @@ app.get('/ui', swaggerUI({ url: '/doc' }))
 
 // Export murni Hono App untuk Cloudflare Workers
 export default app
-// Bismillah deploy jalan
