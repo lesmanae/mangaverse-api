@@ -5,19 +5,11 @@ import { cors } from 'hono/cors'
 
 const app = new OpenAPIHono()
 
-// ==========================================
-// 0. IZIN CORS
-// ==========================================
 app.use('/api/*', cors())
 
 app.get('/', (c) => c.text('Mangaverse API is Running di Cloudflare Workers! Cek /ui untuk Dokumentasi.'))
 
-// ==========================================
-// 1. CONFIG & HEADERS
-// ==========================================
 const URL_KOMIKU = "https://komiku.org/";
-const URL_API_KOMIKU = "https://api.komiku.org/";
-const URL_API_KOMIKU_ID = "https://api.komiku.id/";
 
 const getHeaders = () => ({
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -34,7 +26,7 @@ const GenericResponse = z.object({
 })
 
 // ==========================================
-// 2. DEKLARASI ROUTES (SWAGGER UI)
+// 2. DEKLARASI ROUTES
 // ==========================================
 const routeTerbaru = createRoute({ method: 'get', path: '/api/terbaru', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Terbaru' } } })
 const routeGenreAll = createRoute({ method: 'get', path: '/api/genre-all', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Semua Genre' } } })
@@ -44,7 +36,8 @@ const routeRekomendasi = createRoute({ method: 'get', path: '/api/rekomendasi', 
 const routePopuler = createRoute({ method: 'get', path: '/api/populer', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Populer (Manga, Manhwa, Manhua)' } } })
 const routeBerwarna = createRoute({ method: 'get', path: '/api/berwarna/{page}', request: { params: z.object({ page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Berwarna' } } })
 const routePustaka = createRoute({ method: 'get', path: '/api/pustaka/{page}', request: { params: z.object({ page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Pustaka Komik' } } })
-const routeSearch = createRoute({ method: 'get', path: '/api/search/{query}', request: { params: z.object({ query: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Cari Komik' } } })
+// Route pencarian sekarang WAJIB pakai page di belakangnya
+const routeSearch = createRoute({ method: 'get', path: '/api/search/{query}/{page}', request: { params: z.object({ query: z.string(), page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Cari Komik' } } })
 const routeDetail = createRoute({ method: 'get', path: '/api/detail/{slug}', request: { params: z.object({ slug: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Detail Komik' } } })
 const routeBaca = createRoute({ method: 'get', path: '/api/baca/{slug}/{chapter}', request: { params: z.object({ slug: z.string(), chapter: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Baca Chapter' } } })
 
@@ -52,7 +45,6 @@ const routeBaca = createRoute({ method: 'get', path: '/api/baca/{slug}/{chapter}
 // 3. LOGIC CONTROLLERS
 // ==========================================
 
-// 0. TERBARU
 app.openapi(routeTerbaru, async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
@@ -129,7 +121,6 @@ app.openapi(routeTerbaru, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 1. GENRE ALL
 app.openapi(routeGenreAll, async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
@@ -150,7 +141,6 @@ app.openapi(routeGenreAll, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 2. GENRE REKOMENDASI
 app.openapi(routeGenreRekomendasi, async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
@@ -172,11 +162,10 @@ app.openapi(routeGenreRekomendasi, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 3. GENRE DETAIL (PAGINATION)
 app.openapi(routeGenreDetail, async (c) => {
   try {
     const slug = c.req.param('slug'); const page = c.req.param('page');
-    const res = await fetch(`${URL_API_KOMIKU}genre/${slug}/page/${page}/`, { headers: getHeaders() })
+    const res = await fetch(`https://api.komiku.org/genre/${slug}/page/${page}/`, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
     const mangaList: any[] = []
     $(".bge, .daftar .bge, .list-manga .item, .manga-item").each((i, el) => {
@@ -193,7 +182,6 @@ app.openapi(routeGenreDetail, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 4. REKOMENDASI KOMIK
 app.openapi(routeRekomendasi, async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
@@ -213,7 +201,6 @@ app.openapi(routeRekomendasi, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 5. KOMIK POPULER
 app.openapi(routePopuler, async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
@@ -236,11 +223,10 @@ app.openapi(routePopuler, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
-// 6. BERWARNA
 app.openapi(routeBerwarna, async (c) => {
   try {
     const page = c.req.param('page');
-    const url = parseInt(page) === 1 ? `${URL_API_KOMIKU}other/berwarna/` : `${URL_API_KOMIKU}other/berwarna/page/${page}/`;
+    const url = parseInt(page) === 1 ? `https://api.komiku.org/other/berwarna/` : `https://api.komiku.org/other/berwarna/page/${page}/`;
     const res = await fetch(url, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
     const mangaList: any[] = []
@@ -257,45 +243,52 @@ app.openapi(routeBerwarna, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 7. PUSTAKA
+// PUSTAKA DI-FIX (Pakai URL utama komiku.org, bukan api.komiku.id yang diblokir)
 app.openapi(routePustaka, async (c) => {
   try {
     const page = c.req.param('page');
-    const res = await fetch(`${URL_API_KOMIKU_ID}manga/page/${page}/`, { headers: getHeaders() })
+    const url = parseInt(page) === 1 ? `https://komiku.org/manga/` : `https://komiku.org/manga/page/${page}/`;
+    const res = await fetch(url, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
     const mangaList: any[] = []
     $(".bge").each((i, el) => {
       const title = $(el).find(".kan h3").text().trim();
-      const thumbnail = $(el).find(".bgei img").attr("src") || "";
+      const thumbnail = $(el).find(".bgei img").attr("src") || $(el).find(".bgei img").attr("data-src") || "";
+      const type = $(el).find(".tpe1_inf b").text().trim();
       const path = $(el).find(".bgei a").attr("href") || "";
       let slug = "";
       const match = path.match(/\/manga\/(.*?)\//);
       if (match) slug = match[1];
-      mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
+      mangaList.push({ title, thumbnail, type, apiDetailLink: `/api/detail/${slug}` });
     });
     return c.json({ status: true, data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 8. PENCARIAN (UPGRADE: MONSTER SCRAPER 3 LAPIS)
+// SEARCH DI-FIX (Sekarang Menerima Parameter Page)
 app.openapi(routeSearch, async (c) => {
   try {
     const query = c.req.param('query');
-    const searchUrl = `https://komiku.org/?s=${encodeURIComponent(query)}&post_type=manga`;
+    const page = c.req.param('page');
+    
+    // Format URL Pagination khusus Search di Komiku
+    const searchUrl = parseInt(page) === 1 
+      ? `https://komiku.org/?s=${encodeURIComponent(query)}&post_type=manga`
+      : `https://komiku.org/page/${page}/?post_type=manga&s=${encodeURIComponent(query)}`;
+
     const res = await fetch(searchUrl, { headers: getHeaders() });
     const html = await res.text();
     const $ = cheerio.load(html);
     let mangaList: any[] = [];
 
-    // LAPIS 1: HTMX Api Fetch (Kalau komiku nyembunyiin hasil pake htmx)
+    // Lapis 1: HTMX
     const htmxElement = $(".daftar span[hx-get]");
     if (htmxElement.length > 0) {
       const htmxApiUrl = htmxElement.attr("hx-get");
       if (htmxApiUrl) {
         try {
           const htmxRes = await fetch(htmxApiUrl, { headers: { ...getHeaders(), "HX-Request": "true", Referer: searchUrl } });
-          const htmxHtml = await htmxRes.text();
-          const $htmx = cheerio.load(htmxHtml);
+          const $htmx = cheerio.load(await htmxRes.text());
           $htmx(".bge").each((i, el) => {
             const title = $htmx(el).find(".kan h3").text().trim();
             const thumbnail = $htmx(el).find(".bgei img").attr("data-src") || $htmx(el).find(".bgei img").attr("src") || "";
@@ -307,7 +300,7 @@ app.openapi(routeSearch, async (c) => {
       }
     }
 
-    // LAPIS 2: Class .bge biasa (Kalau metode 1 kosong)
+    // Lapis 2: Class .bge biasa
     if (mangaList.length === 0) {
       $(".bge, .daftar .bge").each((i, el) => {
         const title = $(el).find(".kan h3, h3").text().trim();
@@ -318,7 +311,7 @@ app.openapi(routeSearch, async (c) => {
       });
     }
 
-    // LAPIS 3: Generic Parser Brutal Force (Sapu bersih semua link manga kalau tetep kosong)
+    // Lapis 3: Sapu link
     if (mangaList.length === 0) {
       $("a").each((i, el) => {
         const link = $(el).attr("href");
@@ -329,7 +322,6 @@ app.openapi(routeSearch, async (c) => {
             if (slugMatch && slugMatch[1]) {
               const slug = slugMatch[1];
               let thumbnail = $(el).find("img").attr("data-src") || $(el).find("img").attr("src") || "";
-              // Jangan masukin foto profil avatar orang komentar
               if (!thumbnail.includes('avatar') && !thumbnail.includes('gravatar')) {
                 mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
               }
@@ -337,7 +329,6 @@ app.openapi(routeSearch, async (c) => {
           }
         }
       });
-      // Bersihin hasil ganda
       const seen = new Set();
       mangaList = mangaList.filter(item => {
         if (!seen.has(item.apiDetailLink) && item.thumbnail) {
@@ -352,7 +343,6 @@ app.openapi(routeSearch, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 9. DETAIL KOMIK
 app.openapi(routeDetail, async (c) => {
   try {
     const slug = c.req.param('slug');
@@ -376,7 +366,6 @@ app.openapi(routeDetail, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
-// 10. BACA CHAPTER
 app.openapi(routeBaca, async (c) => {
   try {
     const { slug, chapter } = c.req.param();
