@@ -6,7 +6,7 @@ import { cors } from 'hono/cors'
 const app = new OpenAPIHono()
 
 // ==========================================
-// 0. IZIN CORS (Biar web lu bisa narik data)
+// 0. IZIN CORS
 // ==========================================
 app.use('/api/*', cors())
 
@@ -102,9 +102,6 @@ app.openapi(routeTerbaru, async (c) => {
       const latestChapterTitle = latestChapterElement.text().trim();
       const latestChapterLinkPath = latestChapterElement.attr("href");
 
-      const isColored = element.find(".ls4v span.warna").length > 0;
-      const updateCountText = element.find(".ls4v span.up").text().trim();
-
       let mangaSlug = "";
       if (originalLinkPath) {
         const slugMatches = originalLinkPath.match(/\/manga\/([^/]+)/);
@@ -121,7 +118,7 @@ app.openapi(routeTerbaru, async (c) => {
 
       if (title && title !== "Judul Tidak Tersedia" && thumbnail) {
         komikTerbaru.push({
-          title, thumbnail, type, genre, updateTime, latestChapterTitle, isColored, updateCountText,
+          title, thumbnail, type, genre, updateTime, latestChapterTitle, 
           apiDetailLink: mangaSlug ? `/api/detail/${mangaSlug}` : null,
           apiChapterLink
         });
@@ -142,12 +139,11 @@ app.openapi(routeGenreAll, async (c) => {
       const anchorTag = $(el).find("a");
       const title = anchorTag.text().trim();
       const originalLinkPath = anchorTag.attr("href") || "";
-      const titleAttr = anchorTag.attr("title");
       let genreSlug = "";
       const matches = originalLinkPath.match(/\/genre\/([^/]+)/);
       if (matches && matches[1]) genreSlug = matches[1];
       if (title && originalLinkPath) {
-        allGenres.push({ title, slug: genreSlug, apiGenreLink: genreSlug ? `/api/genre/${genreSlug}/page/1` : originalLinkPath, titleAttr: titleAttr || title });
+        allGenres.push({ title, slug: genreSlug, apiGenreLink: genreSlug ? `/api/genre/${genreSlug}/page/1` : originalLinkPath });
       }
     });
     return c.json({ status: true, data: allGenres })
@@ -187,12 +183,11 @@ app.openapi(routeGenreDetail, async (c) => {
       const title = $(el).find(".kan h3, h3, h2, .title").text().trim();
       let thumbnail = $(el).find(".bgei img, img").first().attr("src") || $(el).find("img").first().attr("data-src") || "";
       const type = $(el).find(".tpe1_inf b").text().trim();
-      const desc = $(el).find(".kan p").text().trim();
       const path = $(el).find(".kan a, a").first().attr("href") || "";
       let mangaSlug = "";
       const match = path.match(/\/manga\/([^/]+)/);
       if (match) mangaSlug = match[1];
-      if (title && thumbnail) mangaList.push({ title, slug: mangaSlug, type, thumbnail, desc, apiDetailLink: `/api/detail/${mangaSlug}` });
+      if (title && thumbnail) mangaList.push({ title, slug: mangaSlug, type, thumbnail, apiDetailLink: `/api/detail/${mangaSlug}` });
     });
     return c.json({ status: true, data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
@@ -252,12 +247,11 @@ app.openapi(routeBerwarna, async (c) => {
     $(".bge").each((i, el) => {
       const title = $(el).find("h3").text().trim();
       const thumbnail = $(el).find(".sd").attr("src") || "";
-      const desc = $(el).find(".kan p").text().trim();
       const path = $(el).find(".bgei a").attr("href") || "";
       let slug = "";
       const match = path.match(/\/manga\/(.*?)\//);
       if (match) slug = match[1];
-      mangaList.push({ title, thumbnail, desc, apiDetailLink: `/api/detail/${slug}` });
+      mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
     });
     return c.json({ status: true, data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
@@ -283,20 +277,77 @@ app.openapi(routePustaka, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// 8. PENCARIAN
+// 8. PENCARIAN (UPGRADE: MONSTER SCRAPER 3 LAPIS)
 app.openapi(routeSearch, async (c) => {
   try {
     const query = c.req.param('query');
-    const res = await fetch(`${URL_KOMIKU}?s=${encodeURIComponent(query)}&post_type=manga`, { headers: getHeaders() })
-    const $ = cheerio.load(await res.text())
-    let mangaList: any[] = []
-    $(".bge").each((i, el) => {
-      const title = $(el).find(".kan h3").text().trim();
-      const thumbnail = $(el).find(".bgei img").attr("src") || "";
-      const path = $(el).find(".bgei a").attr("href") || "";
-      const slug = path.replace("/manga/", "").replace(/\/$/, "");
-      if (title) mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
-    });
+    const searchUrl = `https://komiku.org/?s=${encodeURIComponent(query)}&post_type=manga`;
+    const res = await fetch(searchUrl, { headers: getHeaders() });
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    let mangaList: any[] = [];
+
+    // LAPIS 1: HTMX Api Fetch (Kalau komiku nyembunyiin hasil pake htmx)
+    const htmxElement = $(".daftar span[hx-get]");
+    if (htmxElement.length > 0) {
+      const htmxApiUrl = htmxElement.attr("hx-get");
+      if (htmxApiUrl) {
+        try {
+          const htmxRes = await fetch(htmxApiUrl, { headers: { ...getHeaders(), "HX-Request": "true", Referer: searchUrl } });
+          const htmxHtml = await htmxRes.text();
+          const $htmx = cheerio.load(htmxHtml);
+          $htmx(".bge").each((i, el) => {
+            const title = $htmx(el).find(".kan h3").text().trim();
+            const thumbnail = $htmx(el).find(".bgei img").attr("data-src") || $htmx(el).find(".bgei img").attr("src") || "";
+            const path = $htmx(el).find(".bgei a").attr("href") || "";
+            const slug = path.replace("/manga/", "").replace(/\/$/, "");
+            if (title && slug) mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
+          });
+        } catch (e) {}
+      }
+    }
+
+    // LAPIS 2: Class .bge biasa (Kalau metode 1 kosong)
+    if (mangaList.length === 0) {
+      $(".bge, .daftar .bge").each((i, el) => {
+        const title = $(el).find(".kan h3, h3").text().trim();
+        const thumbnail = $(el).find(".bgei img, img").attr("data-src") || $(el).find(".bgei img, img").attr("src") || "";
+        const path = $(el).find(".bgei a, a").first().attr("href") || "";
+        const slug = path.replace("/manga/", "").replace(/\/$/, "");
+        if (title && slug) mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
+      });
+    }
+
+    // LAPIS 3: Generic Parser Brutal Force (Sapu bersih semua link manga kalau tetep kosong)
+    if (mangaList.length === 0) {
+      $("a").each((i, el) => {
+        const link = $(el).attr("href");
+        if (link && link.includes("/manga/")) {
+          const title = $(el).text().trim() || $(el).find("h3").text().trim() || $(el).attr('title') || "";
+          if (title && title.length > 3) {
+            const slugMatch = link.match(/\/manga\/([^/]+)/);
+            if (slugMatch && slugMatch[1]) {
+              const slug = slugMatch[1];
+              let thumbnail = $(el).find("img").attr("data-src") || $(el).find("img").attr("src") || "";
+              // Jangan masukin foto profil avatar orang komentar
+              if (!thumbnail.includes('avatar') && !thumbnail.includes('gravatar')) {
+                mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
+              }
+            }
+          }
+        }
+      });
+      // Bersihin hasil ganda
+      const seen = new Set();
+      mangaList = mangaList.filter(item => {
+        if (!seen.has(item.apiDetailLink) && item.thumbnail) {
+          seen.add(item.apiDetailLink);
+          return true;
+        }
+        return false;
+      });
+    }
+
     return c.json({ status: true, data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
@@ -344,11 +395,4 @@ app.openapi(routeBaca, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
-// ==========================================
-// 4. SETUP EXPORT UNTUK CLOUDFLARE WORKERS
-// ==========================================
-app.doc('/doc', { openapi: '3.0.0', info: { version: '1.0.0', title: 'Mangaverse API by Fjrlesmana' } })
-app.get('/ui', swaggerUI({ url: '/doc' }))
-
-// Export murni Hono App untuk Cloudflare Workers
 export default app
