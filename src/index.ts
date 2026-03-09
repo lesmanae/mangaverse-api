@@ -5,11 +5,45 @@ import { cors } from 'hono/cors'
 
 const app = new OpenAPIHono()
 
+// ==========================================
+// 0. IZIN CORS
+// ==========================================
 app.use('/api/*', cors())
 
-app.get('/', (c) => c.text('Mangaverse API is Running di Cloudflare Workers! Cek /ui untuk Dokumentasi.'))
+// ==========================================
+// 1. TAMPILAN UI API MODERN (SCALAR) DI ROOT DOMAIN
+// ==========================================
+app.get('/', (c) => {
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="id">
+      <head>
+        <title>Mangaverse API Reference</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+          body { margin: 0; background-color: #0b0c10; }
+        </style>
+      </head>
+      <body>
+        <script
+          id="api-reference"
+          data-url="/doc"
+          data-theme="deepSpace"
+          data-layout="modern"
+        ></script>
+        <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+      </body>
+    </html>
+  `)
+})
 
+// ==========================================
+// 2. CONFIG & HEADERS
+// ==========================================
 const URL_KOMIKU = "https://komiku.org/";
+const URL_API_KOMIKU = "https://api.komiku.org/";
+const URL_API_KOMIKU_ID = "https://api.komiku.id/";
 
 const getHeaders = () => ({
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -26,7 +60,7 @@ const GenericResponse = z.object({
 })
 
 // ==========================================
-// 2. DEKLARASI ROUTES
+// 3. DEKLARASI ROUTES UNTUK DOKUMENTASI
 // ==========================================
 const routeTerbaru = createRoute({ method: 'get', path: '/api/terbaru', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Terbaru' } } })
 const routeGenreAll = createRoute({ method: 'get', path: '/api/genre-all', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Semua Genre' } } })
@@ -36,13 +70,12 @@ const routeRekomendasi = createRoute({ method: 'get', path: '/api/rekomendasi', 
 const routePopuler = createRoute({ method: 'get', path: '/api/populer', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Populer (Manga, Manhwa, Manhua)' } } })
 const routeBerwarna = createRoute({ method: 'get', path: '/api/berwarna/{page}', request: { params: z.object({ page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Berwarna' } } })
 const routePustaka = createRoute({ method: 'get', path: '/api/pustaka/{page}', request: { params: z.object({ page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Pustaka Komik' } } })
-// Route pencarian sekarang WAJIB pakai page di belakangnya
 const routeSearch = createRoute({ method: 'get', path: '/api/search/{query}/{page}', request: { params: z.object({ query: z.string(), page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Cari Komik' } } })
 const routeDetail = createRoute({ method: 'get', path: '/api/detail/{slug}', request: { params: z.object({ slug: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Detail Komik' } } })
 const routeBaca = createRoute({ method: 'get', path: '/api/baca/{slug}/{chapter}', request: { params: z.object({ slug: z.string(), chapter: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Baca Chapter' } } })
 
 // ==========================================
-// 3. LOGIC CONTROLLERS
+// 4. LOGIC CONTROLLERS
 // ==========================================
 
 app.openapi(routeTerbaru, async (c) => {
@@ -243,7 +276,6 @@ app.openapi(routeBerwarna, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// PUSTAKA DI-FIX (Pakai URL utama komiku.org, bukan api.komiku.id yang diblokir)
 app.openapi(routePustaka, async (c) => {
   try {
     const page = c.req.param('page');
@@ -265,13 +297,11 @@ app.openapi(routePustaka, async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-// SEARCH DI-FIX (Sekarang Menerima Parameter Page)
 app.openapi(routeSearch, async (c) => {
   try {
     const query = c.req.param('query');
     const page = c.req.param('page');
     
-    // Format URL Pagination khusus Search di Komiku
     const searchUrl = parseInt(page) === 1 
       ? `https://komiku.org/?s=${encodeURIComponent(query)}&post_type=manga`
       : `https://komiku.org/page/${page}/?post_type=manga&s=${encodeURIComponent(query)}`;
@@ -383,5 +413,20 @@ app.openapi(routeBaca, async (c) => {
     return c.json({ status: true, data: { title, images } })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
+
+// ==========================================
+// 5. SETUP DOKUMENTASI (DATA DEFINITION)
+// ==========================================
+app.doc('/doc', { 
+  openapi: '3.0.0', 
+  info: { 
+    version: '1.0.0', 
+    title: 'Mangaverse API by Fjrlesmana',
+    description: 'API scraping manga bahasa Indonesia, berjalan di atas Cloudflare Workers. Stabil dan ngebut!'
+  } 
+})
+
+// Endpoint cadangan (Swagger UI klasik)
+app.get('/ui', swaggerUI({ url: '/doc' }))
 
 export default app
