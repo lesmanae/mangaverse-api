@@ -11,7 +11,7 @@ const app = new OpenAPIHono()
 app.use('/api/*', cors())
 
 // ==========================================
-// 1. TAMPILAN UI API MODERN (SCALAR) DI ROOT DOMAIN
+// 1. TAMPILAN UI API MODERN (PERSIS KAYA SONZAIX)
 // ==========================================
 app.get('/', (c) => {
   return c.html(`
@@ -22,16 +22,65 @@ app.get('/', (c) => {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>
-          body { margin: 0; background-color: #0b0c10; }
+          body { 
+            margin: 0; 
+            background-color: #0b0d17; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          }
+          /* Custom warna biar persis kaya gambar lu */
+          :root {
+            --scalar-color-1: #ffffff;
+            --scalar-color-2: #94a3b8;
+            --scalar-color-3: #64748b;
+            --scalar-color-accent: #3b82f6;
+            --scalar-background-1: #0b0d17;
+            --scalar-background-2: #151828;
+            --scalar-background-3: #1e2235;
+            --scalar-border-color: #2a2f45;
+            --scalar-button-1: #3b82f6;
+            --scalar-button-1-hover: #2563eb;
+            --scalar-button-1-color: #ffffff;
+            --scalar-radius: 12px;
+          }
+          
+          /* MENGHILANGKAN KODE ANEH (Ruby, Node.js, dll) */
+          .scalar-client,
+          .scalar-api-client,
+          .scalar-api-client-wrapper,
+          .client-libraries,
+          .section-client,
+          [class*="client-selector"],
+          [class*="scalar-code-block"] {
+            display: none !important;
+          }
+          
+          /* Memaksa area response JSON tampil full dan bersih */
+          .scalar-card {
+            border: 1px solid var(--scalar-border-color) !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+          }
+          .scalar-button {
+            font-weight: bold !important;
+            padding: 12px 24px !important;
+          }
         </style>
       </head>
       <body>
-        <script
-          id="api-reference"
-          data-url="/doc"
-          data-theme="deepSpace"
-          data-layout="modern"
-        ></script>
+        <script id="api-reference"></script>
+        <script>
+          var configuration = {
+            spec: { url: '/doc' },
+            theme: 'none', 
+            layout: 'classic', /* Ini bikin layoutnya memanjang ke bawah kaya gambar lu */
+            showSidebar: true,
+            hideModels: true,
+            hideDownloadButton: true,
+            metaData: {
+              title: 'Mangaverse API'
+            }
+          }
+          document.getElementById('api-reference').dataset.configuration = JSON.stringify(configuration)
+        </script>
         <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
       </body>
     </html>
@@ -60,19 +109,65 @@ const GenericResponse = z.object({
 })
 
 // ==========================================
-// 3. DEKLARASI ROUTES UNTUK DOKUMENTASI
+// 3. DEKLARASI ROUTES (DENGAN DEFAULT PARAMETER)
 // ==========================================
 const routeTerbaru = createRoute({ method: 'get', path: '/api/terbaru', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Terbaru' } } })
 const routeGenreAll = createRoute({ method: 'get', path: '/api/genre-all', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Semua Genre' } } })
 const routeGenreRekomendasi = createRoute({ method: 'get', path: '/api/genre', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Genre Rekomendasi' } } })
-const routeGenreDetail = createRoute({ method: 'get', path: '/api/genre/{slug}/page/{page}', request: { params: z.object({ slug: z.string(), page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Manga by Genre' } } })
 const routeRekomendasi = createRoute({ method: 'get', path: '/api/rekomendasi', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Rekomendasi' } } })
-const routePopuler = createRoute({ method: 'get', path: '/api/populer', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Populer (Manga, Manhwa, Manhua)' } } })
-const routeBerwarna = createRoute({ method: 'get', path: '/api/berwarna/{page}', request: { params: z.object({ page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Berwarna' } } })
-const routePustaka = createRoute({ method: 'get', path: '/api/pustaka/{page}', request: { params: z.object({ page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Pustaka Komik' } } })
-const routeSearch = createRoute({ method: 'get', path: '/api/search/{query}/{page}', request: { params: z.object({ query: z.string(), page: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Cari Komik' } } })
-const routeDetail = createRoute({ method: 'get', path: '/api/detail/{slug}', request: { params: z.object({ slug: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Detail Komik' } } })
-const routeBaca = createRoute({ method: 'get', path: '/api/baca/{slug}/{chapter}', request: { params: z.object({ slug: z.string(), chapter: z.string() }) }, responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Baca Chapter' } } })
+const routePopuler = createRoute({ method: 'get', path: '/api/populer', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Populer' } } })
+
+// Route dengan Parameter yg sudah dikasih Example (Biar gak usah ngetik manual)
+const routeGenreDetail = createRoute({ 
+  method: 'get', path: '/api/genre/{slug}/page/{page}', 
+  request: { params: z.object({ 
+    slug: z.string().openapi({ example: 'action' }), 
+    page: z.string().openapi({ example: '1' }) 
+  }) }, 
+  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Manga by Genre' } } 
+})
+
+const routeBerwarna = createRoute({ 
+  method: 'get', path: '/api/berwarna/{page}', 
+  request: { params: z.object({ 
+    page: z.string().openapi({ example: '1' }) 
+  }) }, 
+  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Berwarna' } } 
+})
+
+const routePustaka = createRoute({ 
+  method: 'get', path: '/api/pustaka/{page}', 
+  request: { params: z.object({ 
+    page: z.string().openapi({ example: '1' }) 
+  }) }, 
+  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Pustaka Komik' } } 
+})
+
+const routeSearch = createRoute({ 
+  method: 'get', path: '/api/search/{query}/{page}', 
+  request: { params: z.object({ 
+    query: z.string().openapi({ example: 'solo leveling' }), 
+    page: z.string().openapi({ example: '1' }) 
+  }) }, 
+  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Cari Komik' } } 
+})
+
+const routeDetail = createRoute({ 
+  method: 'get', path: '/api/detail/{slug}', 
+  request: { params: z.object({ 
+    slug: z.string().openapi({ example: 'solo-leveling' }) 
+  }) }, 
+  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Detail Komik' } } 
+})
+
+const routeBaca = createRoute({ 
+  method: 'get', path: '/api/baca/{slug}/{chapter}', 
+  request: { params: z.object({ 
+    slug: z.string().openapi({ example: 'solo-leveling' }), 
+    chapter: z.string().openapi({ example: '1' }) 
+  }) }, 
+  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Baca Chapter' } } 
+})
 
 // ==========================================
 // 4. LOGIC CONTROLLERS
@@ -369,7 +464,7 @@ app.openapi(routeSearch, async (c) => {
       });
     }
 
-    return c.json({ status: true, data: mangaList })
+    return c.json({ status: true, message: "Success", data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
@@ -392,7 +487,7 @@ app.openapi(routeDetail, async (c) => {
       if (match) chapters.push({ title: chapterTitle, apiChapterLink: `/api/baca/${match[1]}/${match[2]}` });
     });
 
-    return c.json({ status: true, data: { title, thumbnail, sinopsis, chapters } })
+    return c.json({ status: true, message: "Success", data: { title, thumbnail, sinopsis, chapters } })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
@@ -410,23 +505,20 @@ app.openapi(routeBaca, async (c) => {
       if (src && (src.includes("upload"))) images.push({ src });
     });
 
-    return c.json({ status: true, data: { title, images } })
+    return c.json({ status: true, message: "Success", data: { title, images } })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
 // ==========================================
-// 5. SETUP DOKUMENTASI (DATA DEFINITION)
+// 5. SETUP DOKUMENTASI DATA 
 // ==========================================
 app.doc('/doc', { 
   openapi: '3.0.0', 
   info: { 
     version: '1.0.0', 
-    title: 'Mangaverse API by Fjrlesmana',
-    description: 'API scraping manga bahasa Indonesia, berjalan di atas Cloudflare Workers. Stabil dan ngebut!'
+    title: 'Mangaverse API',
+    description: 'API scraping manga bahasa Indonesia.'
   } 
 })
-
-// Endpoint cadangan (Swagger UI klasik)
-app.get('/ui', swaggerUI({ url: '/doc' }))
 
 export default app
