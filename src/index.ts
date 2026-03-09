@@ -11,7 +11,7 @@ const app = new OpenAPIHono()
 app.use('/api/*', cors())
 
 // ==========================================
-// 1. TAMPILAN UI API MODERN (PERSIS KAYA SONZAIX)
+// 1. TAMPILAN UI API MODERN (FIXED: BISA EDIT PARAMETER & DARK MODE)
 // ==========================================
 app.get('/', (c) => {
   return c.html(`
@@ -22,46 +22,10 @@ app.get('/', (c) => {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>
-          body { 
-            margin: 0; 
-            background-color: #0b0d17; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          }
-          /* Custom warna biar persis kaya gambar lu */
-          :root {
-            --scalar-color-1: #ffffff;
-            --scalar-color-2: #94a3b8;
-            --scalar-color-3: #64748b;
-            --scalar-color-accent: #3b82f6;
-            --scalar-background-1: #0b0d17;
-            --scalar-background-2: #151828;
-            --scalar-background-3: #1e2235;
-            --scalar-border-color: #2a2f45;
-            --scalar-button-1: #3b82f6;
-            --scalar-button-1-hover: #2563eb;
-            --scalar-button-1-color: #ffffff;
-            --scalar-radius: 12px;
-          }
-          
-          /* MENGHILANGKAN KODE ANEH (Ruby, Node.js, dll) */
-          .scalar-client,
-          .scalar-api-client,
-          .scalar-api-client-wrapper,
-          .client-libraries,
-          .section-client,
-          [class*="client-selector"],
-          [class*="scalar-code-block"] {
+          body { margin: 0; background-color: #0b0d17; }
+          /* Menyembunyikan TAB Bahasa Pemrograman tanpa merusak fungsi tombol Test Request */
+          .scalar-card .scalar-client-selector {
             display: none !important;
-          }
-          
-          /* Memaksa area response JSON tampil full dan bersih */
-          .scalar-card {
-            border: 1px solid var(--scalar-border-color) !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-          }
-          .scalar-button {
-            font-weight: bold !important;
-            padding: 12px 24px !important;
           }
         </style>
       </head>
@@ -70,8 +34,8 @@ app.get('/', (c) => {
         <script>
           var configuration = {
             spec: { url: '/doc' },
-            theme: 'none', 
-            layout: 'classic', /* Ini bikin layoutnya memanjang ke bawah kaya gambar lu */
+            theme: 'deepSpace', /* Tema Dark Mode resmi Scalar */
+            layout: 'classic',  /* Layout memanjang ke bawah persis gambar lu */
             showSidebar: true,
             hideModels: true,
             hideDownloadButton: true,
@@ -109,7 +73,7 @@ const GenericResponse = z.object({
 })
 
 // ==========================================
-// 3. DEKLARASI ROUTES (DENGAN DEFAULT PARAMETER)
+// 3. DEKLARASI ROUTES (DENGAN CONTOH PARAMETER DEFAULT)
 // ==========================================
 const routeTerbaru = createRoute({ method: 'get', path: '/api/terbaru', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Terbaru' } } })
 const routeGenreAll = createRoute({ method: 'get', path: '/api/genre-all', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Semua Genre' } } })
@@ -117,7 +81,6 @@ const routeGenreRekomendasi = createRoute({ method: 'get', path: '/api/genre', r
 const routeRekomendasi = createRoute({ method: 'get', path: '/api/rekomendasi', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Rekomendasi' } } })
 const routePopuler = createRoute({ method: 'get', path: '/api/populer', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Populer' } } })
 
-// Route dengan Parameter yg sudah dikasih Example (Biar gak usah ngetik manual)
 const routeGenreDetail = createRoute({ 
   method: 'get', path: '/api/genre/{slug}/page/{page}', 
   request: { params: z.object({ 
@@ -516,7 +479,7 @@ app.doc('/doc', {
   openapi: '3.0.0', 
   info: { 
     version: '1.0.0', 
-    title: 'Mangaverse API',
+    title: 'Mangaverse API by Fjrlesmana',
     description: 'API scraping manga bahasa Indonesia.'
   } 
 })
