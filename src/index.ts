@@ -1,5 +1,4 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
-import { swaggerUI } from '@hono/swagger-ui'
 import * as cheerio from 'cheerio'
 import { cors } from 'hono/cors'
 
@@ -11,45 +10,208 @@ const app = new OpenAPIHono()
 app.use('/api/*', cors())
 
 // ==========================================
-// 1. TAMPILAN UI API MODERN (FIXED: BISA EDIT PARAMETER & DARK MODE)
+// 1. UI API CUSTOM (SUPER SIMPLE ALA SONZAIX)
 // ==========================================
 app.get('/', (c) => {
-  return c.html(`
-    <!DOCTYPE html>
-    <html lang="id">
-      <head>
-        <title>Mangaverse API Reference</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <style>
-          body { margin: 0; background-color: #0b0d17; }
-          /* Menyembunyikan TAB Bahasa Pemrograman tanpa merusak fungsi tombol Test Request */
-          .scalar-card .scalar-client-selector {
-            display: none !important;
-          }
-        </style>
-      </head>
-      <body>
-        <script id="api-reference"></script>
-        <script>
-          var configuration = {
-            spec: { url: '/doc' },
-            theme: 'deepSpace', /* Tema Dark Mode resmi Scalar */
-            layout: 'classic',  /* Layout memanjang ke bawah persis gambar lu */
-            showSidebar: true,
-            hideModels: true,
-            hideDownloadButton: true,
-            metaData: {
-              title: 'Mangaverse API'
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mangaverse API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0b0d14; color: #a1a1aa; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .json-key { color: #818cf8; }
+        .json-string { color: #34d399; }
+        .json-number { color: #fbbf24; }
+        .json-boolean { color: #f472b6; }
+        /* Hilangkan scrollbar bawaan */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0b0d14; }
+        ::-webkit-scrollbar-thumb { background: #1f2233; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2d314a; }
+    </style>
+</head>
+<body class="p-4 md:p-8 text-sm">
+    <div class="max-w-3xl mx-auto">
+        <div class="mb-6 uppercase tracking-[0.2em] text-xs font-bold text-gray-500 border-b border-gray-800 pb-2">MANGAVERSE API</div>
+        
+        <div class="bg-[#12141d] rounded-xl border border-[#1f2233] overflow-hidden shadow-2xl">
+            <div class="p-4 bg-[#181b28] border-b border-[#1f2233] flex justify-between items-center">
+                <h2 class="text-blue-500 font-bold text-lg flex items-center gap-3">
+                    Mangaverse Endpoint <span class="bg-blue-600/20 text-blue-400 text-[10px] px-2 py-0.5 rounded uppercase font-bold">MANGA</span>
+                </h2>
+                <span class="text-gray-500 text-xs">11 endpoints</span>
+            </div>
+            <div id="endpoint-list" class="p-4 space-y-4">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const endpoints = [
+            { id: 'search', method: 'GET', path: '/api/search/{query}/{page}', desc: 'Search Manga', params: ['query', 'page'], defaults: { query: 'solo', page: '1' } },
+            { id: 'terbaru', method: 'GET', path: '/api/terbaru', desc: 'Latest Updates', params: [], defaults: {} },
+            { id: 'populer', method: 'GET', path: '/api/populer', desc: 'Trending', params: [], defaults: {} },
+            { id: 'rekomendasi', method: 'GET', path: '/api/rekomendasi', desc: 'Recommended', params: [], defaults: {} },
+            { id: 'detail', method: 'GET', path: '/api/detail/{slug}', desc: 'Manga Detail', params: ['slug'], defaults: { slug: 'solo-leveling' } },
+            { id: 'baca', method: 'GET', path: '/api/baca/{slug}/{chapter}', desc: 'Read Chapter', params: ['slug', 'chapter'], defaults: { slug: 'solo-leveling', chapter: '1' } },
+            { id: 'pustaka', method: 'GET', path: '/api/pustaka/{page}', desc: 'Manga Library', params: ['page'], defaults: { page: '1' } },
+            { id: 'berwarna', method: 'GET', path: '/api/berwarna/{page}', desc: 'Colored Manga', params: ['page'], defaults: { page: '1' } },
+            { id: 'genreall', method: 'GET', path: '/api/genre-all', desc: 'All Genres List', params: [], defaults: {} },
+            { id: 'genrerekom', method: 'GET', path: '/api/genre', desc: 'Genre Recommended', params: [], defaults: {} },
+            { id: 'genredetail', method: 'GET', path: '/api/genre/{slug}/page/{page}', desc: 'Manga by Genre', params: ['slug', 'page'], defaults: { slug: 'action', page: '1' } }
+        ];
+
+        const listContainer = document.getElementById('endpoint-list');
+        const baseUrl = window.location.origin;
+
+        // Syntax Highlighter khusus output JSON biar berwarna
+        function syntaxHighlight(json) {
+            if (typeof json != 'string') json = JSON.stringify(json, undefined, 2);
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\\s*:)?|\\b(true|false|null)\\b|-?\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) cls = 'json-key';
+                    else cls = 'json-string';
+                } else if (/true|false/.test(match)) cls = 'json-boolean';
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        function togglePanel(id) {
+            const panel = document.getElementById('panel-' + id);
+            panel.classList.toggle('hidden');
+        }
+
+        function updateUrl(id, path, params) {
+            let compiledUrl = baseUrl + path;
+            params.forEach(p => {
+                const val = document.getElementById(id + '-' + p).value || '{' + p + '}';
+                compiledUrl = compiledUrl.replace('{' + p + '}', encodeURIComponent(val));
+            });
+            document.getElementById(id + '-url').innerText = compiledUrl;
+        }
+
+        async function sendReq(id, path, params) {
+            const btn = document.getElementById(id + '-btn');
+            const resContainer = document.getElementById(id + '-res-container');
+            const jsonBox = document.getElementById(id + '-json');
+            const statusBox = document.getElementById(id + '-status');
+            const timeBox = document.getElementById(id + '-time');
+            
+            btn.innerText = 'Sending...';
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            let finalUrl = baseUrl + path;
+            params.forEach(p => {
+                const val = document.getElementById(id + '-' + p).value;
+                finalUrl = finalUrl.replace('{' + p + '}', encodeURIComponent(val));
+            });
+
+            const startTime = performance.now();
+            try {
+                const response = await fetch(finalUrl);
+                const data = await response.json();
+                const endTime = performance.now();
+                
+                resContainer.classList.remove('hidden');
+                statusBox.innerText = response.status;
+                statusBox.className = response.ok ? 'text-green-500 font-bold text-xs' : 'text-red-500 font-bold text-xs';
+                timeBox.innerText = Math.round(endTime - startTime) + 'ms';
+                
+                jsonBox.innerHTML = syntaxHighlight(data);
+            } catch (err) {
+                resContainer.classList.remove('hidden');
+                statusBox.innerText = 'ERROR';
+                statusBox.className = 'text-red-500 font-bold text-xs';
+                timeBox.innerText = '';
+                jsonBox.innerHTML = '<span class="text-red-500">' + err.message + '</span>';
+            } finally {
+                btn.innerText = 'Send Request';
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
-          }
-          document.getElementById('api-reference').dataset.configuration = JSON.stringify(configuration)
-        </script>
-        <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-      </body>
-    </html>
-  `)
+        }
+
+        function copyUrl(id) {
+            const text = document.getElementById(id + '-url').innerText;
+            navigator.clipboard.writeText(text);
+            const btn = document.getElementById(id + '-copy');
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = 'Copy', 2000);
+        }
+
+        function copyJson(id) {
+            const text = document.getElementById(id + '-json').innerText;
+            navigator.clipboard.writeText(text);
+            const btn = document.getElementById(id + '-json-copy');
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = 'Copy', 2000);
+        }
+
+        // Render HTML
+        endpoints.forEach(ep => {
+            let paramInputs = '';
+            if (ep.params.length > 0) {
+                ep.params.forEach(p => {
+                    paramInputs += \`
+                        <div class="flex items-center gap-4">
+                            <label class="w-20 text-[#a78bfa] text-sm text-right font-medium">\${p}*</label>
+                            <input id="\${ep.id}-\${p}" type="text" value="\${ep.defaults[p]}" oninput="updateUrl('\${ep.id}', '\${ep.path}', [\${ep.params.map(x=>\`'\${x}'\`).join(',')}])" class="flex-1 bg-[#0b0d14] border border-[#1f2233] rounded-md p-2.5 text-gray-200 outline-none focus:border-blue-500 transition shadow-inner font-mono text-sm">
+                        </div>
+                    \`;
+                });
+            }
+
+            const cardHtml = \`
+                <div class="bg-[#181b28] border border-[#1f2233] rounded-xl overflow-hidden shadow-sm">
+                    <div class="p-3 flex items-center justify-between cursor-pointer hover:bg-[#1f2233] transition" onclick="togglePanel('\${ep.id}')">
+                        <div class="flex items-center gap-4">
+                            <span class="bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 font-bold px-2 py-1 rounded text-xs tracking-wider">\${ep.method}</span>
+                            <span class="text-gray-300 font-mono text-sm">\${ep.path}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">\${ep.desc}</span>
+                    </div>
+
+                    <div id="panel-\${ep.id}" class="hidden p-4 border-t border-[#1f2233] bg-[#12141d]">
+                        <div class="space-y-4 max-w-2xl mx-auto">
+                            
+                            \${paramInputs ? \`<div class="space-y-3 bg-[#181b28] p-4 rounded-lg border border-[#1f2233]">\${paramInputs}</div>\` : ''}
+
+                            <div class="flex gap-2">
+                                <div class="flex-1 bg-[#0b0d14] border border-[#1f2233] rounded-lg p-3 text-gray-500 text-xs overflow-x-auto whitespace-nowrap scrollbar-hide flex items-center" id="\${ep.id}-url"></div>
+                                <button id="\${ep.id}-copy" onclick="copyUrl('\${ep.id}')" class="bg-[#1f2233] hover:bg-[#2d314a] text-gray-300 px-4 py-2 rounded-lg text-xs font-bold transition border border-[#2d314a]">Copy</button>
+                            </div>
+
+                            <button id="\${ep.id}-btn" onclick="sendReq('\${ep.id}', '\${ep.path}', [\${ep.params.map(x=>\`'\${x}'\`).join(',')}])" class="w-full bg-[#3b82f6] hover:bg-blue-500 text-white font-bold py-3.5 rounded-lg transition shadow-[0_0_15px_rgba(59,130,246,0.2)]">Send Request</button>
+
+                            <div id="\${ep.id}-res-container" class="hidden mt-6 border border-[#1f2233] rounded-xl overflow-hidden bg-[#0b0d14]">
+                                <div class="flex justify-between items-center p-3 bg-[#181b28] border-b border-[#1f2233]">
+                                    <div class="flex gap-4 items-center">
+                                        <span class="text-green-500 font-bold text-xs bg-green-500/10 px-2 py-1 rounded" id="\${ep.id}-status"></span>
+                                        <span class="text-gray-500 text-xs" id="\${ep.id}-time"></span>
+                                    </div>
+                                    <button id="\${ep.id}-json-copy" onclick="copyJson('\${ep.id}')" class="bg-[#1f2233] hover:bg-[#2d314a] text-gray-300 px-3 py-1.5 rounded-md text-xs font-bold transition border border-[#2d314a]">Copy</button>
+                                </div>
+                                <pre class="p-4 text-[11px] leading-relaxed overflow-x-auto max-h-[500px]" id="\${ep.id}-json"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            \`;
+            listContainer.innerHTML += cardHtml;
+            updateUrl(ep.id, ep.path, ep.params);
+        });
+    </script>
+</body>
+</html>
+  `;
+  return c.html(html)
 })
+
 
 // ==========================================
 // 2. CONFIG & HEADERS
@@ -66,77 +228,11 @@ const getHeaders = () => ({
   "Cache-Control": "public, max-age=3600",
 });
 
-const GenericResponse = z.object({
-  status: z.boolean(),
-  message: z.string().optional(),
-  data: z.any() 
-})
-
 // ==========================================
-// 3. DEKLARASI ROUTES (DENGAN CONTOH PARAMETER DEFAULT)
-// ==========================================
-const routeTerbaru = createRoute({ method: 'get', path: '/api/terbaru', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Terbaru' } } })
-const routeGenreAll = createRoute({ method: 'get', path: '/api/genre-all', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Semua Genre' } } })
-const routeGenreRekomendasi = createRoute({ method: 'get', path: '/api/genre', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Genre Rekomendasi' } } })
-const routeRekomendasi = createRoute({ method: 'get', path: '/api/rekomendasi', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Rekomendasi' } } })
-const routePopuler = createRoute({ method: 'get', path: '/api/populer', responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Populer' } } })
-
-const routeGenreDetail = createRoute({ 
-  method: 'get', path: '/api/genre/{slug}/page/{page}', 
-  request: { params: z.object({ 
-    slug: z.string().openapi({ example: 'action' }), 
-    page: z.string().openapi({ example: '1' }) 
-  }) }, 
-  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Manga by Genre' } } 
-})
-
-const routeBerwarna = createRoute({ 
-  method: 'get', path: '/api/berwarna/{page}', 
-  request: { params: z.object({ 
-    page: z.string().openapi({ example: '1' }) 
-  }) }, 
-  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Komik Berwarna' } } 
-})
-
-const routePustaka = createRoute({ 
-  method: 'get', path: '/api/pustaka/{page}', 
-  request: { params: z.object({ 
-    page: z.string().openapi({ example: '1' }) 
-  }) }, 
-  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Pustaka Komik' } } 
-})
-
-const routeSearch = createRoute({ 
-  method: 'get', path: '/api/search/{query}/{page}', 
-  request: { params: z.object({ 
-    query: z.string().openapi({ example: 'solo leveling' }), 
-    page: z.string().openapi({ example: '1' }) 
-  }) }, 
-  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Cari Komik' } } 
-})
-
-const routeDetail = createRoute({ 
-  method: 'get', path: '/api/detail/{slug}', 
-  request: { params: z.object({ 
-    slug: z.string().openapi({ example: 'solo-leveling' }) 
-  }) }, 
-  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Detail Komik' } } 
-})
-
-const routeBaca = createRoute({ 
-  method: 'get', path: '/api/baca/{slug}/{chapter}', 
-  request: { params: z.object({ 
-    slug: z.string().openapi({ example: 'solo-leveling' }), 
-    chapter: z.string().openapi({ example: '1' }) 
-  }) }, 
-  responses: { 200: { content: { 'application/json': { schema: GenericResponse } }, description: 'Baca Chapter' } } 
-})
-
-// ==========================================
-// 4. LOGIC CONTROLLERS
+// 3. LOGIC CONTROLLERS API
 // ==========================================
 
-app.openapi(routeTerbaru, async (c) => {
+app.get('/api/terbaru', async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
@@ -208,11 +304,11 @@ app.openapi(routeTerbaru, async (c) => {
       }
     });
 
-    return c.json({ status: true, data: komikTerbaru })
+    return c.json({ status: true, message: "success", data: komikTerbaru })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routeGenreAll, async (c) => {
+app.get('/api/genre-all', async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
@@ -228,11 +324,11 @@ app.openapi(routeGenreAll, async (c) => {
         allGenres.push({ title, slug: genreSlug, apiGenreLink: genreSlug ? `/api/genre/${genreSlug}/page/1` : originalLinkPath });
       }
     });
-    return c.json({ status: true, data: allGenres })
+    return c.json({ status: true, message: "success", data: allGenres })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routeGenreRekomendasi, async (c) => {
+app.get('/api/genre', async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
@@ -249,11 +345,11 @@ app.openapi(routeGenreRekomendasi, async (c) => {
       else if (matches && matches[1]) genreSlug = matches[1];
       if (title && thumbnail) rekomendasi.push({ title, slug: genreSlug, thumbnail, apiGenreLink: `/api/genre/${genreSlug}/page/1` });
     });
-    return c.json({ status: true, data: rekomendasi })
+    return c.json({ status: true, message: "success", data: rekomendasi })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routeGenreDetail, async (c) => {
+app.get('/api/genre/:slug/page/:page', async (c) => {
   try {
     const slug = c.req.param('slug'); const page = c.req.param('page');
     const res = await fetch(`https://api.komiku.org/genre/${slug}/page/${page}/`, { headers: getHeaders() })
@@ -269,11 +365,11 @@ app.openapi(routeGenreDetail, async (c) => {
       if (match) mangaSlug = match[1];
       if (title && thumbnail) mangaList.push({ title, slug: mangaSlug, type, thumbnail, apiDetailLink: `/api/detail/${mangaSlug}` });
     });
-    return c.json({ status: true, data: mangaList })
+    return c.json({ status: true, message: "success", data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routeRekomendasi, async (c) => {
+app.get('/api/rekomendasi', async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
@@ -288,11 +384,11 @@ app.openapi(routeRekomendasi, async (c) => {
       if (match) slug = match[1];
       if (title && thumbnail) rekomendasi.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
     });
-    return c.json({ status: true, data: rekomendasi })
+    return c.json({ status: true, message: "success", data: rekomendasi })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routePopuler, async (c) => {
+app.get('/api/populer', async (c) => {
   try {
     const res = await fetch(URL_KOMIKU, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
@@ -310,11 +406,11 @@ app.openapi(routePopuler, async (c) => {
       });
       return items;
     }
-    return c.json({ status: true, data: { manga: scrapeSection("#Komik_Hot_Manga"), manhwa: scrapeSection("#Komik_Hot_Manhwa"), manhua: scrapeSection("#Komik_Hot_Manhua") } })
+    return c.json({ status: true, message: "success", data: { manga: scrapeSection("#Komik_Hot_Manga"), manhwa: scrapeSection("#Komik_Hot_Manhwa"), manhua: scrapeSection("#Komik_Hot_Manhua") } })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
-app.openapi(routeBerwarna, async (c) => {
+app.get('/api/berwarna/:page', async (c) => {
   try {
     const page = c.req.param('page');
     const url = parseInt(page) === 1 ? `https://api.komiku.org/other/berwarna/` : `https://api.komiku.org/other/berwarna/page/${page}/`;
@@ -330,11 +426,11 @@ app.openapi(routeBerwarna, async (c) => {
       if (match) slug = match[1];
       mangaList.push({ title, thumbnail, apiDetailLink: `/api/detail/${slug}` });
     });
-    return c.json({ status: true, data: mangaList })
+    return c.json({ status: true, message: "success", data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routePustaka, async (c) => {
+app.get('/api/pustaka/:page', async (c) => {
   try {
     const page = c.req.param('page');
     const url = parseInt(page) === 1 ? `https://komiku.org/manga/` : `https://komiku.org/manga/page/${page}/`;
@@ -351,11 +447,11 @@ app.openapi(routePustaka, async (c) => {
       if (match) slug = match[1];
       mangaList.push({ title, thumbnail, type, apiDetailLink: `/api/detail/${slug}` });
     });
-    return c.json({ status: true, data: mangaList })
+    return c.json({ status: true, message: "success", data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routeSearch, async (c) => {
+app.get('/api/search/:query/:page', async (c) => {
   try {
     const query = c.req.param('query');
     const page = c.req.param('page');
@@ -369,7 +465,6 @@ app.openapi(routeSearch, async (c) => {
     const $ = cheerio.load(html);
     let mangaList: any[] = [];
 
-    // Lapis 1: HTMX
     const htmxElement = $(".daftar span[hx-get]");
     if (htmxElement.length > 0) {
       const htmxApiUrl = htmxElement.attr("hx-get");
@@ -388,7 +483,6 @@ app.openapi(routeSearch, async (c) => {
       }
     }
 
-    // Lapis 2: Class .bge biasa
     if (mangaList.length === 0) {
       $(".bge, .daftar .bge").each((i, el) => {
         const title = $(el).find(".kan h3, h3").text().trim();
@@ -399,7 +493,6 @@ app.openapi(routeSearch, async (c) => {
       });
     }
 
-    // Lapis 3: Sapu link
     if (mangaList.length === 0) {
       $("a").each((i, el) => {
         const link = $(el).attr("href");
@@ -427,11 +520,11 @@ app.openapi(routeSearch, async (c) => {
       });
     }
 
-    return c.json({ status: true, message: "Success", data: mangaList })
+    return c.json({ status: true, message: "success", data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
-app.openapi(routeDetail, async (c) => {
+app.get('/api/detail/:slug', async (c) => {
   try {
     const slug = c.req.param('slug');
     const res = await fetch(`${URL_KOMIKU}manga/${slug}/`, { headers: getHeaders() })
@@ -450,11 +543,11 @@ app.openapi(routeDetail, async (c) => {
       if (match) chapters.push({ title: chapterTitle, apiChapterLink: `/api/baca/${match[1]}/${match[2]}` });
     });
 
-    return c.json({ status: true, message: "Success", data: { title, thumbnail, sinopsis, chapters } })
+    return c.json({ status: true, message: "success", data: { title, thumbnail, sinopsis, chapters } })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
 })
 
-app.openapi(routeBaca, async (c) => {
+app.get('/api/baca/:slug/:chapter', async (c) => {
   try {
     const { slug, chapter } = c.req.param();
     const res = await fetch(`${URL_KOMIKU}${slug}-chapter-${chapter}/`, { headers: getHeaders() })
@@ -468,20 +561,8 @@ app.openapi(routeBaca, async (c) => {
       if (src && (src.includes("upload"))) images.push({ src });
     });
 
-    return c.json({ status: true, message: "Success", data: { title, images } })
+    return c.json({ status: true, message: "success", data: { title, images } })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: null }, 500) }
-})
-
-// ==========================================
-// 5. SETUP DOKUMENTASI DATA 
-// ==========================================
-app.doc('/doc', { 
-  openapi: '3.0.0', 
-  info: { 
-    version: '1.0.0', 
-    title: 'Mangaverse API by Fjrlesmana',
-    description: 'API scraping manga bahasa Indonesia.'
-  } 
 })
 
 export default app
