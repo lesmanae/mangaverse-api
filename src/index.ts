@@ -10,7 +10,7 @@ const app = new OpenAPIHono()
 app.use('/api/*', cors())
 
 // ==========================================
-// 1. UI API CUSTOM (SUPER SIMPLE ALA SONZAIX)
+// 1. UI API CUSTOM (HEADER SONZAIX STYLE & FIX PUSTAKA)
 // ==========================================
 app.get('/', (c) => {
   const html = `
@@ -27,7 +27,6 @@ app.get('/', (c) => {
         .json-string { color: #34d399; }
         .json-number { color: #fbbf24; }
         .json-boolean { color: #f472b6; }
-        /* Hilangkan scrollbar bawaan */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0b0d14; }
         ::-webkit-scrollbar-thumb { background: #1f2233; border-radius: 4px; }
@@ -36,7 +35,14 @@ app.get('/', (c) => {
 </head>
 <body class="p-4 md:p-8 text-sm">
     <div class="max-w-3xl mx-auto">
-        <div class="mb-6 uppercase tracking-[0.2em] text-xs font-bold text-gray-500 border-b border-gray-800 pb-2">MANGAVERSE API</div>
+        
+        <div class="text-center mt-6 mb-10">
+            <h1 class="text-2xl md:text-3xl font-black text-gray-200 flex items-center justify-center gap-3">
+                <svg class="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" clip-rule="evenodd"></path></svg>
+                Mangaverse API
+            </h1>
+            <p class="text-gray-500 text-[10px] sm:text-xs mt-2 tracking-widest uppercase font-semibold">Interactive API Explorer - by Fjrlesmana</p>
+        </div>
         
         <div class="bg-[#12141d] rounded-xl border border-[#1f2233] overflow-hidden shadow-2xl">
             <div class="p-4 bg-[#181b28] border-b border-[#1f2233] flex justify-between items-center">
@@ -47,6 +53,10 @@ app.get('/', (c) => {
             </div>
             <div id="endpoint-list" class="p-4 space-y-4">
                 </div>
+        </div>
+        
+        <div class="text-center mt-8 text-gray-600 text-xs">
+            Built with ⚡ by Fjrlesmana. For educational purposes only.
         </div>
     </div>
 
@@ -68,7 +78,6 @@ app.get('/', (c) => {
         const listContainer = document.getElementById('endpoint-list');
         const baseUrl = window.location.origin;
 
-        // Syntax Highlighter khusus output JSON biar berwarna
         function syntaxHighlight(json) {
             if (typeof json != 'string') json = JSON.stringify(json, undefined, 2);
             json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -120,14 +129,14 @@ app.get('/', (c) => {
                 
                 resContainer.classList.remove('hidden');
                 statusBox.innerText = response.status;
-                statusBox.className = response.ok ? 'text-green-500 font-bold text-xs' : 'text-red-500 font-bold text-xs';
+                statusBox.className = response.ok ? 'text-green-500 font-bold text-xs bg-green-500/10 px-2 py-1 rounded' : 'text-red-500 font-bold text-xs bg-red-500/10 px-2 py-1 rounded';
                 timeBox.innerText = Math.round(endTime - startTime) + 'ms';
                 
                 jsonBox.innerHTML = syntaxHighlight(data);
             } catch (err) {
                 resContainer.classList.remove('hidden');
                 statusBox.innerText = 'ERROR';
-                statusBox.className = 'text-red-500 font-bold text-xs';
+                statusBox.className = 'text-red-500 font-bold text-xs bg-red-500/10 px-2 py-1 rounded';
                 timeBox.innerText = '';
                 jsonBox.innerHTML = '<span class="text-red-500">' + err.message + '</span>';
             } finally {
@@ -152,7 +161,6 @@ app.get('/', (c) => {
             setTimeout(() => btn.innerText = 'Copy', 2000);
         }
 
-        // Render HTML
         endpoints.forEach(ep => {
             let paramInputs = '';
             if (ep.params.length > 0) {
@@ -178,20 +186,17 @@ app.get('/', (c) => {
 
                     <div id="panel-\${ep.id}" class="hidden p-4 border-t border-[#1f2233] bg-[#12141d]">
                         <div class="space-y-4 max-w-2xl mx-auto">
-                            
                             \${paramInputs ? \`<div class="space-y-3 bg-[#181b28] p-4 rounded-lg border border-[#1f2233]">\${paramInputs}</div>\` : ''}
-
                             <div class="flex gap-2">
                                 <div class="flex-1 bg-[#0b0d14] border border-[#1f2233] rounded-lg p-3 text-gray-500 text-xs overflow-x-auto whitespace-nowrap scrollbar-hide flex items-center" id="\${ep.id}-url"></div>
                                 <button id="\${ep.id}-copy" onclick="copyUrl('\${ep.id}')" class="bg-[#1f2233] hover:bg-[#2d314a] text-gray-300 px-4 py-2 rounded-lg text-xs font-bold transition border border-[#2d314a]">Copy</button>
                             </div>
-
                             <button id="\${ep.id}-btn" onclick="sendReq('\${ep.id}', '\${ep.path}', [\${ep.params.map(x=>\`'\${x}'\`).join(',')}])" class="w-full bg-[#3b82f6] hover:bg-blue-500 text-white font-bold py-3.5 rounded-lg transition shadow-[0_0_15px_rgba(59,130,246,0.2)]">Send Request</button>
 
                             <div id="\${ep.id}-res-container" class="hidden mt-6 border border-[#1f2233] rounded-xl overflow-hidden bg-[#0b0d14]">
                                 <div class="flex justify-between items-center p-3 bg-[#181b28] border-b border-[#1f2233]">
                                     <div class="flex gap-4 items-center">
-                                        <span class="text-green-500 font-bold text-xs bg-green-500/10 px-2 py-1 rounded" id="\${ep.id}-status"></span>
+                                        <span id="\${ep.id}-status"></span>
                                         <span class="text-gray-500 text-xs" id="\${ep.id}-time"></span>
                                     </div>
                                     <button id="\${ep.id}-json-copy" onclick="copyJson('\${ep.id}')" class="bg-[#1f2233] hover:bg-[#2d314a] text-gray-300 px-3 py-1.5 rounded-md text-xs font-bold transition border border-[#2d314a]">Copy</button>
@@ -212,13 +217,10 @@ app.get('/', (c) => {
   return c.html(html)
 })
 
-
 // ==========================================
 // 2. CONFIG & HEADERS
 // ==========================================
 const URL_KOMIKU = "https://komiku.org/";
-const URL_API_KOMIKU = "https://api.komiku.org/";
-const URL_API_KOMIKU_ID = "https://api.komiku.id/";
 
 const getHeaders = () => ({
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -430,27 +432,71 @@ app.get('/api/berwarna/:page', async (c) => {
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
+// ==========================================
+// PUSTAKA DI-FIX TOTAL (MONSTER SCRAPER)
+// ==========================================
 app.get('/api/pustaka/:page', async (c) => {
   try {
     const page = c.req.param('page');
-    const url = parseInt(page) === 1 ? `https://komiku.org/manga/` : `https://komiku.org/manga/page/${page}/`;
+    // URL yg benar untuk Pustaka di komiku adalah "daftar-komik"
+    const url = parseInt(page) === 1 ? `https://komiku.org/daftar-komik/` : `https://komiku.org/daftar-komik/page/${page}/`;
+    
     const res = await fetch(url, { headers: getHeaders() })
     const $ = cheerio.load(await res.text())
-    const mangaList: any[] = []
-    $(".bge").each((i, el) => {
-      const title = $(el).find(".kan h3").text().trim();
-      const thumbnail = $(el).find(".bgei img").attr("src") || $(el).find(".bgei img").attr("data-src") || "";
-      const type = $(el).find(".tpe1_inf b").text().trim();
-      const path = $(el).find(".bgei a").attr("href") || "";
+    let mangaList: any[] = []
+
+    // Metode Utama
+    $(".bge, .daftar .bge, .bgei").each((i, el) => {
+      const title = $(el).find(".kan h3, h3, h4").text().trim();
+      const thumbnail = $(el).find("img").attr("data-src") || $(el).find("img").attr("src") || "";
+      const type = $(el).find(".tpe1_inf b, .tpe").text().trim() || "Manga";
+      const path = $(el).find("a").first().attr("href") || "";
       let slug = "";
       const match = path.match(/\/manga\/(.*?)\//);
       if (match) slug = match[1];
-      mangaList.push({ title, thumbnail, type, apiDetailLink: `/api/detail/${slug}` });
+      
+      if (title && slug && !thumbnail.includes('avatar')) {
+        mangaList.push({ title, thumbnail, type, apiDetailLink: `/api/detail/${slug}` });
+      }
     });
+
+    // Metode Sapu Bersih (Kalau struktur HTML komiku ganti tiba-tiba)
+    if (mangaList.length === 0) {
+      $("a").each((i, el) => {
+        const link = $(el).attr("href");
+        if (link && link.includes("/manga/")) {
+          const title = $(el).text().trim() || $(el).find("h3").text().trim() || $(el).attr('title') || "";
+          if (title && title.length > 3) {
+            const slugMatch = link.match(/\/manga\/([^/]+)/);
+            if (slugMatch && slugMatch[1]) {
+              const slug = slugMatch[1];
+              let thumbnail = $(el).find("img").attr("data-src") || $(el).find("img").attr("src") || "";
+              if (!thumbnail.includes('avatar') && !thumbnail.includes('gravatar') && thumbnail) {
+                mangaList.push({ title, thumbnail, type: "Manga", apiDetailLink: `/api/detail/${slug}` });
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Bersihkan data ganda
+    const seen = new Set();
+    mangaList = mangaList.filter(item => {
+      if (!seen.has(item.apiDetailLink) && item.thumbnail) {
+        seen.add(item.apiDetailLink);
+        return true;
+      }
+      return false;
+    });
+
     return c.json({ status: true, message: "success", data: mangaList })
   } catch (err: any) { return c.json({ status: false, message: err.message, data: [] }, 500) }
 })
 
+// ==========================================
+// SEARCH DI-FIX
+// ==========================================
 app.get('/api/search/:query/:page', async (c) => {
   try {
     const query = c.req.param('query');
